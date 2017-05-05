@@ -16,6 +16,10 @@
   SDK doc --> http://www.nxp.com/assets/documents/data/en/reference-manuals/KSDK20APIRM.pdf?&fpsp=1&WT_TYPE=Reference%20Manuals&WT_VENDOR=FREESCALE&WT_FILE_FORMAT=pdf&WT_ASSET=Documentation&fileExt=.pdf
   CMSIS shit --> http://www.keil.com/pack/doc/CMSIS/Driver/html/group__i2c__interface__gr.html
   MBED libararies --> https://developer.mbed.org/users/mbed_official/code/mbed/
+          --> https://docs.mbed.com/docs/mbed-os-handbook/en/latest/getting_started/blinky_compiler/
+          --> http://www2.keil.com/mbed
+          --> https://developer.mbed.org/handbook/CMSIS-DAP-MDK
+          
 
 */
 
@@ -158,24 +162,24 @@ void main_loop(){
 
   calculate_pid();
   
-  throttle = receiver_input_channel_3;                                      //We need the throttle signal as a base signal.
+  throttle = receiver_input_channel_3;
   
-	if (start == 2){															//The motors are started.
-		if (throttle > 1800) throttle = 1800;                                 	//We need some room to keep full control at full throttle.
-		esc_1 = throttle - pid_output_pitch + pid_output_roll - pid_output_yaw; //Calculate the pulse for esc 1 (front-right - CCW)
-		esc_2 = throttle + pid_output_pitch + pid_output_roll + pid_output_yaw; //Calculate the pulse for esc 2 (rear-right - CW)
-		esc_3 = throttle + pid_output_pitch - pid_output_roll - pid_output_yaw; //Calculate the pulse for esc 3 (rear-left - CCW)
-		esc_4 = throttle - pid_output_pitch - pid_output_roll + pid_output_yaw; //Calculate the pulse for esc 4 (front-left - CW)
+	if (start == 2){
+		if (throttle > 1800) throttle = 1800;//We need some room to keep full control at full throttle.
+      esc_1 = throttle - pid_output_pitch + pid_output_roll - pid_output_yaw; //Calculate the pulse for esc 1 (front-right - CCW)
+      esc_2 = throttle + pid_output_pitch + pid_output_roll + pid_output_yaw; //Calculate the pulse for esc 2 (rear-right - CW)
+      esc_3 = throttle + pid_output_pitch - pid_output_roll - pid_output_yaw; //Calculate the pulse for esc 3 (rear-left - CCW)
+      esc_4 = throttle - pid_output_pitch - pid_output_roll + pid_output_yaw; //Calculate the pulse for esc 4 (front-left - CW)
 
-		if (esc_1 < 1200) esc_1 = 1200;      //Keep the motors running.
-		if (esc_2 < 1200) esc_2 = 1200;      //Keep the motors running.
-		if (esc_3 < 1200) esc_3 = 1200;      //Keep the motors running.
-		if (esc_4 < 1200) esc_4 = 1200;      //Keep the motors running.
+      if (esc_1 < 1200) esc_1 = 1200;
+      if (esc_2 < 1200) esc_2 = 1200;
+      if (esc_3 < 1200) esc_3 = 1200;
+      if (esc_4 < 1200) esc_4 = 1200;
 
-		if(esc_1 > 2000)esc_1 = 2000;       //Limit the esc-1 pulse to 2000us.
-		if(esc_2 > 2000)esc_2 = 2000;       //Limit the esc-2 pulse to 2000us.
-		if(esc_3 > 2000)esc_3 = 2000;       //Limit the esc-3 pulse to 2000us.
-		if(esc_4 > 2000)esc_4 = 2000;       //Limit the esc-4 pulse to 2000us.  
+      if(esc_1 > 2000) esc_1 = 2000;
+      if(esc_2 > 2000) esc_2 = 2000;
+      if(esc_3 > 2000) esc_3 = 2000;
+      if(esc_4 > 2000) esc_4 = 2000;  
   }
   else{
     esc_1 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-1.
