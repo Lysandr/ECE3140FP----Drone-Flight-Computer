@@ -5,20 +5,17 @@
 * Drone Flight Controller
 * ECE3140 Final Project
 *
-*
-*
-*
-*
 ******************************/
 
+#include "mbed.h"
 
-// INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
-// INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
-/*	other resources
- MDK stuff --> http://www.keil.com/pack/doc/mw/General/html/index.html
- SDK doc --> http://www.nxp.com/assets/documents/data/en/reference-manuals/KSDK20APIRM.pdf?&fpsp=1&WT_TYPE=Reference%20Manuals&WT_VENDOR=FREESCALE&WT_FILE_FORMAT=pdf&WT_ASSET=Documentation&fileExt=.pdf
- CMSIS shit --> http://www.keil.com/pack/doc/CMSIS/Driver/html/group__i2c__interface__gr.html
- MBED libararies --> https://developer.mbed.org/users/mbed_official/code/mbed/
+/* INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
+  INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
+  other resources
+  MDK stuff --> http://www.keil.com/pack/doc/mw/General/html/index.html
+  SDK doc --> http://www.nxp.com/assets/documents/data/en/reference-manuals/KSDK20APIRM.pdf?&fpsp=1&WT_TYPE=Reference%20Manuals&WT_VENDOR=FREESCALE&WT_FILE_FORMAT=pdf&WT_ASSET=Documentation&fileExt=.pdf
+  CMSIS shit --> http://www.keil.com/pack/doc/CMSIS/Driver/html/group__i2c__interface__gr.html
+  MBED libararies --> https://developer.mbed.org/users/mbed_official/code/mbed/
 
 */
 
@@ -26,15 +23,15 @@
 float p_gain_roll = 1.3;
 float i_gain_roll = 0.05;
 float d_gain_roll = 15;
-float p_gain_pitch = p_gain_roll;
-float i_gain_pitch = i_gain_roll;
-float d_gain_pitch = d_gain_roll;
+float p_gain_pitch = 1.3;
+float i_gain_pitch = 0.05;
+float d_gain_pitch = 15;
 float p_gain_yaw = 4.0;
 float i_gain_yaw = 0.02;
 float d_gain_yaw = 0.0;
 int max_yaw = 400;
 int max_roll = 400;
-int max_pitch = max_roll;
+int max_pitch = 400;
 
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
