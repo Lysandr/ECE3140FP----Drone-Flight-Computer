@@ -15,18 +15,18 @@
 // INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
 // INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
 
-float p_gain_roll = 1.3;               //Gain setting for the roll P-controller (1.3)
-float i_gain_roll = 0.05;              //Gain setting for the roll I-controller (0.3)
-float d_gain_roll = 15;                //Gain setting for the roll D-controller (15)
-float p_gain_pitch = p_gain_roll;  //Gain setting for the pitch P-controller.
-float i_gain_pitch = i_gain_roll;  //Gain setting for the pitch I-controller.
-float d_gain_pitch = d_gain_roll;  //Gain setting for the pitch D-controller.
-float p_gain_yaw = 4.0;                //Gain setting for the pitch P-controller. //4.0
-float i_gain_yaw = 0.02;               //Gain setting for the pitch I-controller. //0.02
-float d_gain_yaw = 0.0;                //Gain setting for the pitch D-controller.
-int max_yaw = 400;                     //Maximum output of the PID-controller (+/-)
-int max_roll = 400;                    //Maximum output of the PID-controller (+/-)
-int max_pitch = max_roll;          //Maximum output of the PID-controller (+/-)
+float p_gain_roll = 1.3;
+float i_gain_roll = 0.05;
+float d_gain_roll = 15;
+float p_gain_pitch = p_gain_roll;
+float i_gain_pitch = i_gain_roll;
+float d_gain_pitch = d_gain_roll;
+float p_gain_yaw = 4.0;
+float i_gain_yaw = 0.02;
+float d_gain_yaw = 0.0;
+int max_yaw = 400;
+int max_roll = 400;
+int max_pitch = max_roll;
 
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
