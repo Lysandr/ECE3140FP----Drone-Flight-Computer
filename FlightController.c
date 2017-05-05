@@ -14,6 +14,14 @@
 
 // INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
 // INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
+/*	other resources
+ MDK stuff --> http://www.keil.com/pack/doc/mw/General/html/index.html
+ SDK doc --> http://www.nxp.com/assets/documents/data/en/reference-manuals/KSDK20APIRM.pdf?&fpsp=1&WT_TYPE=Reference%20Manuals&WT_VENDOR=FREESCALE&WT_FILE_FORMAT=pdf&WT_ASSET=Documentation&fileExt=.pdf
+ CMSIS shit --> http://www.keil.com/pack/doc/CMSIS/Driver/html/group__i2c__interface__gr.html
+ MBED libararies --> https://developer.mbed.org/users/mbed_official/code/mbed/
+
+*/
+
 
 float p_gain_roll = 1.3;
 float i_gain_roll = 0.05;
@@ -32,7 +40,7 @@ char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
 int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4, loop_counter;
 int esc_1, esc_2, esc_3, esc_4;
-int throttle, battery_voltage;
+int throttle;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
 unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
 int cal_int, start;
@@ -108,16 +116,6 @@ void startup_procedure(){
   }
   start = 0;                                                   //Set start back to 0.
   
-  //Load the battery voltage to the battery_voltage variable.
-  //65 is the voltage compensation for the diode.
-  //12.6V equals ~5V @ Analog 0.
-  //12.6V equals 1023 analogRead(0).
-  //1260 / 1023 = 1.2317.
-  //The variable battery_voltage holds 1050 if the battery voltage is 10.5V.
-  battery_voltage = (analogRead(0) + 65) * 1.2317;
-  
-  //When everything is done, turn off the led.
-  digitalWrite(12,LOW);                                        //Turn off the warning led.
 }
 
 // rewrite the timer loop towards the bottom
