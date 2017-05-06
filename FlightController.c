@@ -19,19 +19,22 @@
           --> https://docs.mbed.com/docs/mbed-os-handbook/en/latest/getting_started/blinky_compiler/
           --> http://www2.keil.com/mbed
           --> https://developer.mbed.org/handbook/CMSIS-DAP-MDK
+
+  interrupts for the receiver --> interruptin
+
           
 
 */
 
 
 float p_gain_roll = 1.3;
-float i_gain_roll = 0.05;
+float i_gain_roll = 0;
 float d_gain_roll = 15;
 float p_gain_pitch = 1.3;
-float i_gain_pitch = 0.05;
+float i_gain_pitch = 0;
 float d_gain_pitch = 15;
 float p_gain_yaw = 4.0;
-float i_gain_yaw = 0.02;
+float i_gain_yaw = 0.0;
 float d_gain_yaw = 0.0;
 int max_yaw = 400;
 int max_roll = 400;
@@ -39,7 +42,6 @@ int max_pitch = 400;
 
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
-int counter_channel_1, counter_channel_2, counter_channel_3, counter_channel_4, loop_counter;
 int esc_1, esc_2, esc_3, esc_4;
 int throttle;
 unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
@@ -54,6 +56,8 @@ float pid_error_temp;
 float pid_i_mem_roll, pid_roll_setpoint, gyro_roll_input, pid_output_roll, pid_last_roll_d_error;
 float pid_i_mem_pitch, pid_pitch_setpoint, gyro_pitch_input, pid_output_pitch, pid_last_pitch_d_error;
 float pid_i_mem_yaw, pid_yaw_setpoint, gyro_yaw_input, pid_output_yaw, pid_last_yaw_d_error;
+
+
 
 //rewrite the i2c parts, pretty much all of this
 void startup_procedure(){
@@ -86,9 +90,9 @@ void startup_procedure(){
     gyro_pitch_cal += gyro_pitch;                              //Ad pitch value to gyro_pitch_cal.
     gyro_yaw_cal += gyro_yaw;                                  //Ad yaw value to gyro_yaw_cal.
     //We don't want the esc's to be beeping annoyingly. So let's give them a 1000us puls while calibrating the gyro.
-    PORTD |= B11110000;                                        //Set digital poort 4, 5, 6 and 7 high.
+    PORTD |= B11110000;                                        //Set digital port 4, 5, 6 and 7 high.
     delayMicroseconds(1000);                                   //Wait 1000us.
-    PORTD &= B00001111;                                        //Set digital poort 4, 5, 6 and 7 low.
+    PORTD &= B00001111;                                        //Set digital port 4, 5, 6 and 7 low.
     delay(3);                                                  //Wait 3 milliseconds before the next loop.
   }
   //Now that we have 2000 measures, we need to devide by 2000 to get the average gyro offset.
@@ -122,10 +126,10 @@ void startup_procedure(){
 // rewrite the timer loop towards the bottom
 void main_loop(){
   //Let's get the current gyro data and scale it to degrees per second for the pid calculations.
-	gyro_signalen();
-	gyro_roll_input = (gyro_roll_input * 0.8) + ((gyro_roll / 57.14286) * 0.2);            //Gyro pid input is deg/sec.
-	gyro_pitch_input = (gyro_pitch_input * 0.8) + ((gyro_pitch / 57.14286) * 0.2);         //Gyro pid input is deg/sec.
-	gyro_yaw_input = (gyro_yaw_input * 0.8) + ((gyro_yaw / 57.14286) * 0.2);               //Gyro pid input is deg/sec.
+	read_gyro();
+	gyro_roll_input = (gyro_roll_input * 0.7) + ((gyro_roll / 57.14286) * 0.3);            //Gyro pid input is deg/sec.
+	gyro_pitch_input = (gyro_pitch_input * 0.7) + ((gyro_pitch / 57.14286) * 0.3);         //Gyro pid input is deg/sec.
+	gyro_yaw_input = (gyro_yaw_input * 0.7) + ((gyro_yaw / 57.14286) * 0.3);               //Gyro pid input is deg/sec.
 
 	//For starting the motors: throttle low and yaw left (step 1).
 	//When yaw stick is back in the center position start the motors (step 2).
@@ -141,6 +145,7 @@ void main_loop(){
 		pid_i_mem_yaw = 0;
 		pid_last_yaw_d_error = 0;
 	}
+
 	//Stopping the motors: throttle low and yaw right.
 	if(start == 2 && receiver_input_channel_3 < 1050 && receiver_input_channel_4 > 1950)start = 0;
 
@@ -151,9 +156,11 @@ void main_loop(){
   pid_roll_setpoint = 0;
   if(receiver_input_channel_1 > 1508)pid_roll_setpoint = (receiver_input_channel_1 - 1508)/3.0;
   else if(receiver_input_channel_1 < 1492)pid_roll_setpoint = (receiver_input_channel_1 - 1492)/3.0;
+  
   pid_pitch_setpoint = 0;
   if(receiver_input_channel_2 > 1508)pid_pitch_setpoint = (receiver_input_channel_2 - 1508)/3.0;
   else if(receiver_input_channel_2 < 1492)pid_pitch_setpoint = (receiver_input_channel_2 - 1492)/3.0;
+  
   pid_yaw_setpoint = 0;
   if(receiver_input_channel_3 > 1050){ //Do not yaw when turning off the motors.
     if(receiver_input_channel_4 > 1508)pid_yaw_setpoint = (receiver_input_channel_4 - 1508)/3.0;
