@@ -60,8 +60,13 @@ PwmOut esc2(PTC10);
 PwmOut esc3(PTA2);
 PwmOut esc4(PTC2);
 
+I2C gyro(PTE24, PTE25); // SDA, SCL
+const int gyro_addr = 0x69;
+char cmd[2];
+
+
 //rewrite the i2c parts, pretty much all of this
-void startup_procedure(){
+//void startup_procedure(){
     // set up the i2c stuff
     // set i2c clock speed 
     // declare your PWM outputs
@@ -72,10 +77,10 @@ void startup_procedure(){
     // wait until receiver is active and throttle is in lower position
     // read the battery voltage...
     //  loop_timer = micros();
-}
+//}
 
 // rewrite the timer loop towards the bottom
-void main_loop(){
+//void main_loop(){
     // generate your RPY inputs from the receiver and the gyroscope
     // set regime to start when yaw lower left and throttle minimum
     // set refime to start2 when yaw is moved over, set pid vals to zero
@@ -240,25 +245,93 @@ void main_loop(){
 
 // }
 
-
-
-int main() {
-    wait(10);
-    esc1.period_us(4);          // servo requires a 20ms period
-    esc2.period_us(4);          // servo requires a 20ms period
-    esc3.period_us(4);          // servo requires a 20ms period
-    esc4.period_us(4);          // servo requires a 20ms period
-
-    while (1) {
-        for(int offset=1200; offset<2000; offset+=1) {
-            esc1.pulsewidth_us(offset); // servo position determined by a pulsewidth between 1-2ms
-            esc2.pulsewidth_us(offset); // servo position determined by a pulsewidth between 1-2ms
-            esc3.pulsewidth_us(offset); // servo position determined by a pulsewidth between 1-2ms
-            esc4.pulsewidth_us(offset); // servo position determined by a pulsewidth between 1-2ms
-            wait(0.01);
-        }
-    }
-    startup_procedure();
-    main_loop();
+void read_gyro(){
+    
+    cmd[0] = 0xa8;
+    cmd[1] = 0x00;
+    gyro.write(gyro_addr, cmd, 2);
+    gyro.read(gyro_addr, cmd, 2);
+    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+    gyro.read(gyro_addr, cmd, 2);
+    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+    gyro.read(gyro_addr, cmd, 2);
+    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
 }
 
+void setup_procedure(){
+    esc1.period(0.02);          // servo requires a 20ms period
+    esc2.period(0.02);          // servo requires a 20ms period
+    esc3.period(0.02);          // servo requires a 20ms period
+    esc4.period(0.02);          // servo requires a 20ms period
+    esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    wait(20);
+    
+    cmd[0] = 0x20;
+    cmd[1] = 0x00;
+    gyro.write(gyro_addr, cmd, 2);
+    cmd[0] = 0x0f;
+    gyro.write(gyro_addr, cmd, 2);
+    
+    cmd[0] = 0x23;
+    gyro.write(gyro_addr, cmd, 2);
+    cmd[0] = 0x90;
+    gyro.write(gyro_addr, cmd, 2);
+    wait_ms(300);
+
+    for (cal_int = 0; cal_int < 2000 ; cal_int ++){              
+        read_gyro();
+        gyro_roll_cal += gyro_roll;
+        gyro_pitch_cal += gyro_pitch;
+        gyro_yaw_cal += gyro_yaw;
+        wait_us(3);
+  }
+  gyro_roll_cal /= 2000;
+  gyro_pitch_cal /= 2000;
+  gyro_yaw_cal /= 2000;
+  
+  //********************************
+//  PCICR |= (1 << PCIE0);                                       //Set PCIE0 to enable PCMSK0 scan.
+//  PCMSK0 |= (1 << PCINT0);                                     //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
+//  PCMSK0 |= (1 << PCINT1);                                     //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
+//  PCMSK0 |= (1 << PCINT2);                                     //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
+//  PCMSK0 |= (1 << PCINT3);                                     //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+//
+//  //Wait until the receiver is active and the throtle is set to the lower position.
+//  while(receiver_input_channel_3 < 990 || receiver_input_channel_3 > 1020 || receiver_input_channel_4 < 1400){
+//    start ++;                                                  //While waiting increment start whith every loop.
+//    //We don't want the esc's to be beeping annoyingly. So let's give them a 1000us puls while waiting for the receiver inputs.
+//    PORTD |= B11110000;                                        //Set digital poort 4, 5, 6 and 7 high.
+//    delayMicroseconds(1000);                                   //Wait 1000us.
+//    PORTD &= B00001111;                                        //Set digital poort 4, 5, 6 and 7 low.
+//    delay(3);                                                  //Wait 3 milliseconds before the next loop.
+//    if(start == 125){                                          //Every 125 loops (500ms).
+//      digitalWrite(12, !digitalRead(12));                      //Change the led status.
+//      start = 0;                                               //Start again at 0.
+//    }
+//  }
+//  start = 0;                                                   //Set start back to 0.
+  //***************************************
+  
+ }
+ 
+
+ 
+int main() {    
+    while (1) {
+        cmd[0] = 0xa8;
+        cmd[1] = 0x00;
+        gyro.write(gyro_addr, cmd, 2);
+        gyro.read(gyro_addr, cmd, 2);
+        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+        gyro.read(gyro_addr, cmd, 2);
+        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+        gyro.read(gyro_addr, cmd, 2);
+        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+        //print(gyro_roll);
+//        printf((char*)gyro_pitch);
+//        printf((char*)gyro_yaw);
+    }  
+}
