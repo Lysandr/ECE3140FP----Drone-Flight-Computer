@@ -66,11 +66,9 @@ PwmOut esc4(PTC2);
 //I2C gyro(PTE25, PTE24); // SDA, SCL
 L3G4200D gyro(PTE25, PTE24);
 
-const int gyro_addr = 0x69 << 1;
-char cmd[2];
+//const int gyro_addr = 0x69 << 1;
 
 Serial pc(USBTX, USBRX); // tx, rx
-//pc.baud(115200);
 
 
 
@@ -319,7 +317,7 @@ void read_gyro(){
 //  start = 0;                                                   //Set start back to 0.
   //***************************************
   
- }
+ //}
  
 
  
@@ -339,9 +337,9 @@ int main() {
      //int g[3];
 //    gyro.read(g);
     while (1) {
-        read_gyro
-        pc.printf("roll = %d \r\n", gyro_roll); 
-        pc.printf("pitch = %d \r\n", gyro_pitch);
-        pc.printf("yaw = %d \r\n", gyro_yaw; 
+        read_gyro();
+        pc.printf("roll = %e \r\n", gyro_roll); 
+        pc.printf("pitch = %e \r\n", gyro_pitch);
+        pc.printf("yaw = %e \r\n", gyro_yaw); 
     }  
 }
