@@ -8,6 +8,9 @@
 ******************************/
 
 #include "mbed.h"
+#include <L3G4200D.h>
+
+
 
 /* INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
   INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
@@ -60,9 +63,15 @@ PwmOut esc2(PTC10);
 PwmOut esc3(PTA2);
 PwmOut esc4(PTC2);
 
-I2C gyro(PTE24, PTE25); // SDA, SCL
-const int gyro_addr = 0x69;
+//I2C gyro(PTE25, PTE24); // SDA, SCL
+L3G4200D gyro(PTE25, PTE24);
+
+const int gyro_addr = 0x69 << 1;
 char cmd[2];
+
+Serial pc(USBTX, USBRX); // tx, rx
+//pc.baud(115200);
+
 
 
 //rewrite the i2c parts, pretty much all of this
@@ -117,7 +126,7 @@ char cmd[2];
     // reset the timer
     // apply the pulse correctly. use library or ports???
 
-}
+//}
 
 // this basically needs to measure the incoming pulse length...
 // ISR(PCINT0_vect){
@@ -246,51 +255,46 @@ char cmd[2];
 // }
 
 void read_gyro(){
-    
-    cmd[0] = 0xa8;
-    cmd[1] = 0x00;
-    gyro.write(gyro_addr, cmd, 2);
-    gyro.read(gyro_addr, cmd, 2);
-    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
-    gyro.read(gyro_addr, cmd, 2);
-    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
-    gyro.read(gyro_addr, cmd, 2);
-    gyro_roll = (double((cmd[0]<<8)|cmd[1]));
+    signed int g[3]={};
+    gyro.read(g);
+    gyro_roll = (double) g[0];// CCW -, CW + pointing along X
+    gyro_pitch = (double)g[1]; // CCW -, CW + pointing along Y
+    gyro_yaw = (double)g[2];   // CCW +, CW -
 }
-
-void setup_procedure(){
-    esc1.period(0.02);          // servo requires a 20ms period
-    esc2.period(0.02);          // servo requires a 20ms period
-    esc3.period(0.02);          // servo requires a 20ms period
-    esc4.period(0.02);          // servo requires a 20ms period
-    esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    wait(20);
-    
-    cmd[0] = 0x20;
-    cmd[1] = 0x00;
-    gyro.write(gyro_addr, cmd, 2);
-    cmd[0] = 0x0f;
-    gyro.write(gyro_addr, cmd, 2);
-    
-    cmd[0] = 0x23;
-    gyro.write(gyro_addr, cmd, 2);
-    cmd[0] = 0x90;
-    gyro.write(gyro_addr, cmd, 2);
-    wait_ms(300);
-
-    for (cal_int = 0; cal_int < 2000 ; cal_int ++){              
-        read_gyro();
-        gyro_roll_cal += gyro_roll;
-        gyro_pitch_cal += gyro_pitch;
-        gyro_yaw_cal += gyro_yaw;
-        wait_us(3);
-  }
-  gyro_roll_cal /= 2000;
-  gyro_pitch_cal /= 2000;
-  gyro_yaw_cal /= 2000;
+//
+//void setup_procedure(){
+//    esc1.period(0.02);          // servo requires a 20ms period
+//    esc2.period(0.02);          // servo requires a 20ms period
+//    esc3.period(0.02);          // servo requires a 20ms period
+//    esc4.period(0.02);          // servo requires a 20ms period
+//    esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+//    esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+//    esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+//    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+//    wait(20);
+//    
+//    cmd[0] = 0x20;
+//    cmd[1] = 0x00;
+//    gyro.write(gyro_addr, cmd, 2);
+//    cmd[0] = 0x0f;
+//    gyro.write(gyro_addr, cmd, 2);
+//    
+//    cmd[0] = 0x23;
+//    gyro.write(gyro_addr, cmd, 2);
+//    cmd[0] = 0x90;
+//    gyro.write(gyro_addr, cmd, 2);
+//    wait_ms(300);
+//
+//    for (cal_int = 0; cal_int < 2000 ; cal_int ++){              
+//        read_gyro();
+//        gyro_roll_cal += gyro_roll;
+//        gyro_pitch_cal += gyro_pitch;
+//        gyro_yaw_cal += gyro_yaw;
+//        wait_us(3);
+//  }
+//  gyro_roll_cal /= 2000;
+//  gyro_pitch_cal /= 2000;
+//  gyro_yaw_cal /= 2000;
   
   //********************************
 //  PCICR |= (1 << PCIE0);                                       //Set PCIE0 to enable PCMSK0 scan.
@@ -320,18 +324,25 @@ void setup_procedure(){
 
  
 int main() {    
+    //cmd[0]= 0x20;
+//    cmd[1]= 0x00;
+//    gyro.write(gyro_addr, cmd, 2);
+//    cmd[0]= 0x0F;
+//    gyro.write(gyro_addr, cmd, 2);
+//
+//    cmd[0]= 0x23;
+//    gyro.write(gyro_addr, cmd, 2);
+//    cmd[0]= 0x90;
+//    gyro.write(gyro_addr, cmd, 2);
+//    
+//    wait(1);
+     //int g[3];
+//    gyro.read(g);
+    signed int g[3]={};
     while (1) {
-        cmd[0] = 0xa8;
-        cmd[1] = 0x00;
-        gyro.write(gyro_addr, cmd, 2);
-        gyro.read(gyro_addr, cmd, 2);
-        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
-        gyro.read(gyro_addr, cmd, 2);
-        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
-        gyro.read(gyro_addr, cmd, 2);
-        gyro_roll = (double((cmd[0]<<8)|cmd[1]));
-        //print(gyro_roll);
-//        printf((char*)gyro_pitch);
-//        printf((char*)gyro_yaw);
+        gyro.read(g);
+        pc.printf("roll = %d \r\n", g[0]); 
+        pc.printf("pitch = %d \r\n", g[1]);
+        pc.printf("yaw = %d \r\n", g[2]); 
     }  
 }
