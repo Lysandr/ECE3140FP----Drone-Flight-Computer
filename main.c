@@ -43,16 +43,17 @@ int max_pitch = 400;
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
 int esc_1, esc_2, esc_3, esc_4;
-int throttle;
-unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
+//int throttle;
+
+//unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
 unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
-int cal_int, regime;
-unsigned long loop_timer;
+int calquant, regime;
+unsigned long loop_timer; // this is important for keeping the loop running at the right speed
 double gyro_pitch, gyro_roll, gyro_yaw;
 double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
-char highByte, lowByte;
 
 float sys_error, last_r, last_p, last_y;
+float output_r, output_p, output_y;
 float integral_r, integral_p, integral_y;
 float setpoint_r, setpoint_p, setpoint_y;
 float input_r, input_p, input_y;
@@ -144,7 +145,7 @@ void pid_controller(){
 
  // ################ PITCH
  sys_error = input_p - setpoint_p;
- integral_p += (i_gain_p*sys_error)
+ integral_p += (i_gain_p*sys_error);
  if(integral_p > max_pitch){
      integral_p = max_pitch;
  }
@@ -184,6 +185,10 @@ void read_gyro(){
     gyro_roll = (double) g[0];// CCW -, CW + pointing along X
     gyro_pitch = (double) g[1]; // CCW -, CW + pointing along Y
     gyro_yaw = (double) g[2];   // CCW +, CW -
+
+    if(calquant == 2000)gyro_roll -= gyro_roll_cal; 
+    if(calquant == 2000)gyro_pitch -= gyro_pitch_cal; 
+    if(calquant == 2000)gyro_yaw -= gyro_yaw_cal; 
 }
 
 
@@ -211,7 +216,7 @@ void setup_procedure(){
    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
    wait(20);
    
-   for (cal_int = 0; cal_int < 2000 ; cal_int ++){              
+   for (calquant = 0; calquant < 2000 ; calquant ++){              
        read_gyro();
        gyro_roll_cal += gyro_roll;
        gyro_pitch_cal += gyro_pitch;
@@ -242,31 +247,66 @@ void setup_procedure(){
  //     start = 0;                                               //Start again at 0.
  //   }
  // }
- // start = 0;                                                   //Set start back to 0.
+regime = 2;                                                   //Set start back to 0.
   
 }
+
+
+void main_loop(){
+  //Let's get the current gyro data and scale it to degrees per second for the pid calculations.
+    read_gyro();
+    input_r = (input_r * 0.7) + ((gyro_roll / 57.14286) * 0.3);            //Gyro pid input is deg/sec.
+    input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);         //Gyro pid input is deg/sec.
+    input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);               //Gyro pid input is deg/sec.
+
+  setpoint_r = 0;
+  setpoint_p = 0;
+  setpoint_y = 0;
+
+
+  pid_controller();
+    
+    if (regime == 2){
+        esc_1 =  -output_p + output_r - output_y; //Calculate the pulse for esc 1 (front-right - CCW)
+        esc_2 =  output_p + output_r + output_y; //Calculate the pulse for esc 2 (rear-right - CW)
+        esc_3 =  output_p - output_r - output_y; //Calculate the pulse for esc 3 (rear-left - CCW)
+        esc_4 =  -output_p - output_r + output_y; //Calculate the pulse for esc 4 (front-left - CW)
+
+        if (esc_1 < 1200) esc_1 = 1200;
+        if (esc_2 < 1200) esc_2 = 1200;
+        if (esc_3 < 1200) esc_3 = 1200;
+        if (esc_4 < 1200) esc_4 = 1200;
+
+        if(esc_1 > 2000) esc_1 = 2000;
+        if(esc_2 > 2000) esc_2 = 2000;
+        if(esc_3 > 2000) esc_3 = 2000;
+        if(esc_4 > 2000) esc_4 = 2000;  
+    }
+    else{
+        esc_1 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-1.
+        esc_2 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-2.
+        esc_3 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-3.
+        esc_4 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-4.
+    }
+
+    esc1.pulsewidth_us(esc_1);    // set the initial pulsewidth to 800 us just to keep them on
+    esc2.pulsewidth_us(esc_2);    // set the initial pulsewidth to 800 us just to keep them on
+    esc3.pulsewidth_us(esc_3);    // set the initial pulsewidth to 800 us just to keep them on
+    esc4.pulsewidth_us(esc_4);    // set the initial pulsewidth to 800 us just to keep them on
+  
+  wait_ms(500);
+}
+
  
 
  
-int main() {    
-    //cmd[0]= 0x20;
-//    cmd[1]= 0x00;
-//    gyro.write(gyro_addr, cmd, 2);
-//    cmd[0]= 0x0F;
-//    gyro.write(gyro_addr, cmd, 2);
-//
-//    cmd[0]= 0x23;
-//    gyro.write(gyro_addr, cmd, 2);
-//    cmd[0]= 0x90;
-//    gyro.write(gyro_addr, cmd, 2);
-//    
-//    wait(1);
-     //int g[3];
-//    gyro.read(g);
-    while (1) {
-        read_gyro();
-        pc.printf("roll = %e \r\n", gyro_roll); 
-        pc.printf("pitch = %e \r\n", gyro_pitch);
-        pc.printf("yaw = %e \r\n", gyro_yaw); 
-    }  
+int main() { 
+    setup_procedure();   
+    main_loop();
+    // while (1) {
+    //     read_gyro();
+    //     pc.printf("roll = %e \r\n", gyro_roll); 
+    //     pc.printf("pitch = %e \r\n", gyro_pitch);
+    //     pc.printf("yaw = %e \r\n", gyro_yaw); 
+    // }  
 }
