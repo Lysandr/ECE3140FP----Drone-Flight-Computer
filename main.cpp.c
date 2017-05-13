@@ -258,8 +258,8 @@ void read_gyro(){
     signed int g[3]={};
     gyro.read(g);
     gyro_roll = (double) g[0];// CCW -, CW + pointing along X
-    gyro_pitch = (double)g[1]; // CCW -, CW + pointing along Y
-    gyro_yaw = (double)g[2];   // CCW +, CW -
+    gyro_pitch = (double) g[1]; // CCW -, CW + pointing along Y
+    gyro_yaw = (double) g[2];   // CCW +, CW -
 }
 //
 //void setup_procedure(){
@@ -338,11 +338,10 @@ int main() {
 //    wait(1);
      //int g[3];
 //    gyro.read(g);
-    signed int g[3]={};
     while (1) {
-        gyro.read(g);
-        pc.printf("roll = %d \r\n", g[0]); 
-        pc.printf("pitch = %d \r\n", g[1]);
-        pc.printf("yaw = %d \r\n", g[2]); 
+        read_gyro
+        pc.printf("roll = %d \r\n", gyro_roll); 
+        pc.printf("pitch = %d \r\n", gyro_pitch);
+        pc.printf("yaw = %d \r\n", gyro_yaw; 
     }  
 }
