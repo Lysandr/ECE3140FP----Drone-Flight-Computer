@@ -294,6 +294,11 @@ void main_loop(){
     esc3.pulsewidth_us(esc_3);    // set the initial pulsewidth to 800 us just to keep them on
     esc4.pulsewidth_us(esc_4);    // set the initial pulsewidth to 800 us just to keep them on
   
+    printf("esc1 %s\n",esc_1);
+    printf("esc2 %s\n",esc_2);
+    printf("esc3 %s\n",esc_3);
+    printf("esc4 %s\n",esc_4);
+
   wait_ms(500);
 }
 
@@ -301,8 +306,10 @@ void main_loop(){
 
  
 int main() { 
-    setup_procedure();   
-    main_loop();
+    setup_procedure(); 
+    while(1){  
+        main_loop();
+    }
     // while (1) {
     //     read_gyro();
     //     pc.printf("roll = %e \r\n", gyro_roll); 
