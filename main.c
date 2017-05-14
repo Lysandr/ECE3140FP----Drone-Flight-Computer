@@ -166,12 +166,12 @@ void setup_procedure(){
     gyro_pitch_cal /= 2000;
     gyro_yaw_cal /= 2000;
 
-    if(debug)pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+    if(debug){pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());}
     
     // while the receiver is off, or high, or ch 4 is left
     while(ch3.pulsewidth() < 1000 || ch3.pulsewidth() > 1020 || ch4.pulsewidth() < 1400){;}
     
-    if(debug)pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+    if(debug){pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());}
     
     regime = 0;
     counter = 0;
@@ -262,7 +262,7 @@ void main_loop(){
         esc_2 = 1000;
         esc_3 = 1000;
         esc_4 = 1000;
-
+    }
     esc1.pulsewidth_us(esc_1);
     esc2.pulsewidth_us(esc_2);
     esc3.pulsewidth_us(esc_3);
@@ -285,7 +285,7 @@ void main_loop(){
  
 
  
-int main() { 
+int main(){ 
     setup_procedure(); 
     while(1){  
         main_loop();
