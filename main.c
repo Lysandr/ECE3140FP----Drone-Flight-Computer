@@ -9,6 +9,7 @@
 
 #include "mbed.h"
 #include <L3G4200D.h>
+#include <PwmIn.h>
 
 
 
@@ -39,19 +40,18 @@ float d_gain_y = 0.0;
 int max_yaw = 400;
 int max_roll = 400;
 int max_pitch = 400;
+int counter;
 
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
 int esc_1, esc_2, esc_3, esc_4;
 //int throttle;
 
-//unsigned long timer_channel_1, timer_channel_2, timer_channel_3, timer_channel_4, esc_timer, esc_loop_timer;
-unsigned long timer_1, timer_2, timer_3, timer_4, current_time;
 int calquant, regime;
-unsigned long loop_timer; // this is important for keeping the loop running at the right speed
+float loop_timer; // this is important for keeping the loop running at the right speed
 double gyro_pitch, gyro_roll, gyro_yaw;
-double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
-
+double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal
+;
 float sys_error, last_r, last_p, last_y;
 float output_r, output_p, output_y;
 float integral_r, integral_p, integral_y;
@@ -59,73 +59,24 @@ float setpoint_r, setpoint_p, setpoint_y;
 float input_r, input_p, input_y;
 
  
-PwmOut esc1(PTC11);
-PwmOut esc2(PTC10);
-PwmOut esc3(PTA2);
-PwmOut esc4(PTC2);
+PwmOut esc1(PTA2);
+PwmOut esc2(PTC2);
+PwmOut esc3(PTA1);
+PwmOut esc4(PTC3);
 
-//I2C gyro(PTE25, PTE24); // SDA, SCL
-L3G4200D gyro(PTE25, PTE24);
+PwmIn ch1(PTD0);
+PwmIn ch2(PTD2);
+PwmIn ch3(PTD3);
+PwmIn ch4(PTD1);
+
+Timer t;
 
 //const int gyro_addr = 0x69 << 1;
+//I2C gyro(PTE25, PTE24); // SDA, SCL
 
+L3G4200D gyro(PTE25, PTE24);
 Serial pc(USBTX, USBRX); // tx, rx
 
-
-
-
-
-// this basically needs to measure the incoming pulse length...
-// ISR(PCINT0_vect){
-//   current_time = micros();
-  
-//   //Channel 1=========================================
-//   if(PINB & B00000001){                                        //Is input 8 high?
-//     if(last_channel_1 == 0){                                   //Input 8 changed from 0 to 1
-//       last_channel_1 = 1;                                      //Remember current input state
-//       timer_1 = current_time;                                  //Set timer_1 to current_time
-//     }
-//   }
-//   else if(last_channel_1 == 1){                                //Input 8 is not high and changed from 1 to 0
-//     last_channel_1 = 0;                                        //Remember current input state
-//     receiver_input_channel_1 = current_time - timer_1;         //Channel 1 is current_time - timer_1
-//   }
-//   //Channel 2=========================================
-//   if(PINB & B00000010 ){                                       //Is input 9 high?
-//     if(last_channel_2 == 0){                                   //Input 9 changed from 0 to 1
-//       last_channel_2 = 1;                                      //Remember current input state
-//       timer_2 = current_time;                                  //Set timer_2 to current_time
-//     }
-//   }
-//   else if(last_channel_2 == 1){                                //Input 9 is not high and changed from 1 to 0
-//     last_channel_2 = 0;                                        //Remember current input state
-//     receiver_input_channel_2 = current_time - timer_2;         //Channel 2 is current_time - timer_2
-//   }
-//   //Channel 3=========================================
-//   if(PINB & B00000100 ){                                       //Is input 10 high?
-//     if(last_channel_3 == 0){                                   //Input 10 changed from 0 to 1
-//       last_channel_3 = 1;                                      //Remember current input state
-//       timer_3 = current_time;                                  //Set timer_3 to current_time
-//     }
-//   }
-//   else if(last_channel_3 == 1){                                //Input 10 is not high and changed from 1 to 0
-//     last_channel_3 = 0;                                        //Remember current input state
-//     receiver_input_channel_3 = current_time - timer_3;         //Channel 3 is current_time - timer_3
-
-//   }
-  
-//   //Channel 4=========================================
-//   if(PINB & B00001000 ){                                       //Is input 11 high?
-//     if(last_channel_4 == 0){                                   //Input 11 changed from 0 to 1
-//       last_channel_4 = 1;                                      //Remember current input state
-//       timer_4 = current_time;                                  //Set timer_4 to current_time
-//     }
-//   }
-//   else if(last_channel_4 == 1){                                //Input 11 is not high and changed from 1 to 0
-//     last_channel_4 = 0;                                        //Remember current input state
-//     receiver_input_channel_4 = current_time - timer_4;         //Channel 4 is current_time - timer_4
-//   }
-// }
 
 
 // just make this look
@@ -179,12 +130,17 @@ void pid_controller(){
 
 }
 
+
+
+
+
 void read_gyro(){
     signed int g[3]={};
+    
     gyro.read(g);
-    gyro_roll = (double) g[0];// CCW -, CW + pointing along X
-    gyro_pitch = (double) g[1]; // CCW -, CW + pointing along Y
-    gyro_yaw = (double) g[2];   // CCW +, CW -
+    gyro_roll =     (double) g[0];// CCW -, CW + pointing along X
+    gyro_pitch =    (double) g[1]; // CCW -, CW + pointing along Y
+    gyro_yaw =      (double) g[2];   // CCW +, CW -
 
     if(calquant == 2000)gyro_roll -= gyro_roll_cal; 
     if(calquant == 2000)gyro_pitch -= gyro_pitch_cal; 
@@ -192,79 +148,89 @@ void read_gyro(){
 }
 
 
-//rewrite the i2c parts, pretty much all of this
-//void startup_procedure(){
-    // set up the i2c stuff
-    // set i2c clock speed 
-    // declare your PWM outputs
-    // declare your LED outputs
-    // initialize IMU registers
-    // take gyro calibration samples
-    // set up all your interrupts
-    // wait until receiver is active and throttle is in lower position
-    // read the battery voltage...
-    //  loop_timer = micros();
-//}
 void setup_procedure(){
-   esc1.period(0.02);          // servo requires a 20ms period
-   esc2.period(0.02);          // servo requires a 20ms period
-   esc3.period(0.02);          // servo requires a 20ms period
-   esc4.period(0.02);          // servo requires a 20ms period
-   esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-   esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-   esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-   esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-   wait(20);
+    esc1.period(0.02);          // servo requires a 20ms period
+    esc2.period(0.02);          // servo requires a 20ms period
+    esc3.period(0.02);          // servo requires a 20ms period
+    esc4.period(0.02);          // servo requires a 20ms period
+    esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
+    wait_s(5);
    
-   for (calquant = 0; calquant < 2000 ; calquant ++){              
-       read_gyro();
-       gyro_roll_cal += gyro_roll;
-       gyro_pitch_cal += gyro_pitch;
-       gyro_yaw_cal += gyro_yaw;
-       wait_us(3);
- }
- gyro_roll_cal /= 2000;
- gyro_pitch_cal /= 2000;
- gyro_yaw_cal /= 2000;
-  
- //  ********************************
- // PCICR |= (1 << PCIE0);                                       //Set PCIE0 to enable PCMSK0 scan.
- // PCMSK0 |= (1 << PCINT0);                                     //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
- // PCMSK0 |= (1 << PCINT1);                                     //Set PCINT1 (digital input 9)to trigger an interrupt on state change.
- // PCMSK0 |= (1 << PCINT2);                                     //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
- // PCMSK0 |= (1 << PCINT3);                                     //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+    for (calquant = 0; calquant < 2000 ; calquant ++){              
+        read_gyro();
+        gyro_roll_cal += gyro_roll;
+        gyro_pitch_cal += gyro_pitch;
+        gyro_yaw_cal += gyro_yaw;
+        wait_us(3);
+    }
+    gyro_roll_cal /= 2000;
+    gyro_pitch_cal /= 2000;
+    gyro_yaw_cal /= 2000;
 
- // //Wait until the receiver is active and the throtle is set to the lower position.
- // while(receiver_input_channel_3 < 990 || receiver_input_channel_3 > 1020 || receiver_input_channel_4 < 1400){
- //   start ++;                                                  //While waiting increment start whith every loop.
- //   //We don't want the esc's to be beeping annoyingly. So let's give them a 1000us puls while waiting for the receiver inputs.
- //   PORTD |= B11110000;                                        //Set digital poort 4, 5, 6 and 7 high.
- //   delayMicroseconds(1000);                                   //Wait 1000us.
- //   PORTD &= B00001111;                                        //Set digital poort 4, 5, 6 and 7 low.
- //   delay(3);                                                  //Wait 3 milliseconds before the next loop.
- //   if(start == 125){                                          //Every 125 loops (500ms).
- //     digitalWrite(12, !digitalRead(12));                      //Change the led status.
- //     start = 0;                                               //Start again at 0.
- //   }
- // }
-regime = 2;                                                   //Set start back to 0.
-  
+    // while the receiver is off, or high, or ch 4 is left
+    while(ch3.pulsewidth() < 1000 || ch3.pulsewidth() > 1020 || ch4.pulsewidth() < 1400){;}
+
+    regime = 0;
+    counter = 0;
+    t.start();
+    loop_timer = t.read();
 }
 
 
 void main_loop(){
-  //Let's get the current gyro data and scale it to degrees per second for the pid calculations.
+
     read_gyro();
-    input_r = (input_r * 0.7) + ((gyro_roll / 57.14286) * 0.3);            //Gyro pid input is deg/sec.
-    input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);         //Gyro pid input is deg/sec.
-    input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);               //Gyro pid input is deg/sec.
+    input_r = (input_r * 0.7) + ((gyro_roll / 57.14286) * 0.3);
+    input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);
+    input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);
 
-  setpoint_r = 0;
-  setpoint_p = 0;
-  setpoint_y = 0;
+    
 
+    if(ch3.pulsewidth() < 1020 && ch4.pulsewidth() <1020){
+        regime = 1;
+    }
 
-  pid_controller();
+    if(regime == 1 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() >1420){
+        regime =2;
+        integral_r = 0; integral_p = 0; integral_y = 0; 
+        last_r = 0; last_p = 0; last_y = 0;
+    }
+
+    if(regime ==2 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() > 1970){
+        regime = 0;
+    }
+
+    setpoint_r = 0;
+    setpoint_p = 0;
+    setpoint_y = 0;
+
+    if(ch1.pulsewidth() > 1508){
+        setpoint_r = (ch1.pulsewidth() - 1508)/3.0;
+    }
+    else if(ch1.pulsewidth() < 1492){
+        setpoint_r = (ch1.pulsewidth() - 1492)/3.0;
+    }
+
+    if(ch2.pulsewidth() > 1508){
+        setpoint_p = (ch2.pulsewidth() - 1508)/3.0;
+    }
+    else if(ch2.pulsewidth() < 1492){
+        setpoint_p = (ch1.pulsewidth() - 1492)/3.0;
+    }
+
+    if(ch3.pulsewidth() > 1020){
+        if(ch4.pulsewidth() > 1508){
+            setpoint_y = (ch4.pulsewidth() - 1508)/3.0;
+        }
+        else if(ch4.pulsewidth() < 1492){
+            setpoint_y = (ch4.pulsewidth() - 1492)/3.0;
+        }
+    }
+
+    pid_controller();
     
     if (regime == 2){
         esc_1 =  -output_p + output_r - output_y; //Calculate the pulse for esc 1 (front-right - CCW)
@@ -294,33 +260,16 @@ void main_loop(){
     esc3.pulsewidth_us(esc_3);    // set the initial pulsewidth to 800 us just to keep them on
     esc4.pulsewidth_us(esc_4);    // set the initial pulsewidth to 800 us just to keep them on
   
-    printf("esc1: %s , esc2: %s , esc3: %s , esc4: %s \r\n",esc_1 ,esc_2 ,esc_3 ,esc_4);
-    printf("gyro_roll: %e , gyro_roll: %e , gyro_roll: %e \r\n",gyro_roll, gyro_yaw, gyro_pitch);
-    printf("output_r: %e , output_p: %e , output_y: %e \r\n",output_r, output_p, output_y);
+    if(counter == 125){
+        printf("esc1: %s , esc2: %s , esc3: %s , esc4: %s \r\n",esc_1 ,esc_2 ,esc_3 ,esc_4);
+        printf("gyro_roll: %e , gyro_roll: %e , gyro_roll: %e \r\n",gyro_roll, gyro_yaw, gyro_pitch);
+        printf("output_r: %e , output_p: %e , output_y: %e \r\n",output_r, output_p, output_y);
+        counter = 0;
+    }
 
-    wait_ms(500);
-
-    //All the information for controlling the motor's is available.
-    //The refresh rate is 250Hz. That means the esc's need there pulse every 4ms.
-    // while(micros() - loop_timer < 4000);                                      //We wait until 4000us are passed.
-    // loop_timer = micros();                                                    //Set the timer for the next loop.
-
-    // PORTD |= B11110000;                                                       //Set digital outputs 4,5,6 and 7 high.
-    // timer_channel_1 = esc_1 + loop_timer;                                     //Calculate the time of the faling edge of the esc-1 pulse.
-    // timer_channel_2 = esc_2 + loop_timer;                                     //Calculate the time of the faling edge of the esc-2 pulse.
-    // timer_channel_3 = esc_3 + loop_timer;                                     //Calculate the time of the faling edge of the esc-3 pulse.
-    // timer_channel_4 = esc_4 + loop_timer;                                     //Calculate the time of the faling edge of the esc-4 pulse.
-
-    // while(PORTD >= 16){                                                       //Stay in this loop until output 4,5,6 and 7 are low.
-    // esc_loop_timer = micros();                                              //Read the current time.
-    //     if(timer_channel_1 <= esc_loop_timer)PORTD &= B11101111;                //Set digital output 4 to low if the time is expired.
-    //     if(timer_channel_2 <= esc_loop_timer)PORTD &= B11011111;                //Set digital output 5 to low if the time is expired.
-    //     if(timer_channel_3 <= esc_loop_timer)PORTD &= B10111111;                //Set digital output 6 to low if the time is expired.
-    //     if(timer_channel_4 <= esc_loop_timer)PORTD &= B01111111;                //Set digital output 7 to low if the time is expired.
-    // }
-
-
-    
+    while((t.read()*1000) - loop_timer < 4000);
+    loop_timer = t.read()*1000;
+    counter ++;
 }
 
  
@@ -331,10 +280,4 @@ int main() {
     while(1){  
         main_loop();
     }
-    // while (1) {
-    //     read_gyro();
-    //     pc.printf("roll = %e \r\n", gyro_roll); 
-    //     pc.printf("pitch = %e \r\n", gyro_pitch);
-    //     pc.printf("yaw = %e \r\n", gyro_yaw); 
-    // }  
 }
