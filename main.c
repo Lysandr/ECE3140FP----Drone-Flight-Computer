@@ -27,7 +27,7 @@
   interrupts for the receiver --> interrupting
 */
 
-
+//PID gains for each of the rate controllers. notice the integral controller is very small
 float p_gain_r = 1.3;
 float i_gain_r = 0;
 float d_gain_r = 15;
@@ -37,26 +37,26 @@ float d_gain_p = 15;
 float p_gain_y = 4.0;
 float i_gain_y = 0.0;
 float d_gain_y = 0.0;
+
 int max_yaw = 400;
 int max_roll = 400;
 int max_pitch = 400;
-int counter;
 
-char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
-int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
-double esc_1, esc_2, esc_3, esc_4;
+signed int g[3]={};                     
+int counter, calquant, regime;
+const int debug = 1;
 
-int calquant, regime;
-float loop_timer; // this is important for keeping the loop running at the right speed
-double gyro_pitch, gyro_roll, gyro_yaw;
-double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal
-;
+float throttle;
+float loop_timer;
 float sys_error, last_r, last_p, last_y;
 float output_r, output_p, output_y;
 float integral_r, integral_p, integral_y;
+
+double gyro_pitch, gyro_roll, gyro_yaw;
+double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal;
 double setpoint_r, setpoint_p, setpoint_y;
-float throttle;
 double input_r, input_p, input_y;
+double esc_1, esc_2, esc_3, esc_4;
 
  
 PwmOut esc1(PTA2);
@@ -92,7 +92,6 @@ void pid_controller(){
  }
  output_r = integral_r + (p_gain_r * sys_error) + (d_gain_r * (sys_error - last_r));
  last_r = sys_error;
- // ####################
 
  // ################ PITCH
  sys_error = input_p - setpoint_p;
@@ -105,7 +104,6 @@ void pid_controller(){
  }
  output_p = integral_p + (p_gain_p * sys_error) + (d_gain_p * (sys_error - last_p));
  last_p = sys_error;
- // ####################
 
  // ################ YAW
  sys_error = input_y - setpoint_y;
@@ -118,7 +116,6 @@ void pid_controller(){
  }
  output_y = integral_y + (p_gain_y * sys_error) + (d_gain_y * (sys_error - last_y));
  last_y = sys_error;
- // ####################
 
  // ################ BOUNDARY CONDITIONING
  if(output_r > max_roll)output_r = max_roll;
@@ -135,9 +132,8 @@ void pid_controller(){
 
 
 void read_gyro(){
-    signed int g[3]={};
-    
     gyro.read(g);
+
     gyro_roll =     (double) g[0];// CCW -, CW + pointing along X
     gyro_pitch =    (double) g[1]; // CCW -, CW + pointing along Y
     gyro_yaw =      (double) g[2];   // CCW +, CW -
@@ -149,14 +145,14 @@ void read_gyro(){
 
 
 void setup_procedure(){
-    esc1.period(0.02);          // servo requires a 20ms period
-    esc2.period(0.02);          // servo requires a 20ms period
-    esc3.period(0.02);          // servo requires a 20ms period
-    esc4.period(0.02);          // servo requires a 20ms period
-    esc1.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
-    esc2.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
-    esc3.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
-    esc4.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
+    esc1.period(0.02);
+    esc2.period(0.02);
+    esc3.period(0.02);
+    esc4.period(0.02);
+    esc1.pulsewidth_us(1000);
+    esc2.pulsewidth_us(1000);
+    esc3.pulsewidth_us(1000);
+    esc4.pulsewidth_us(1000);
     wait(5);
    
     for (calquant = 0; calquant < 2000 ; calquant ++){              
@@ -169,10 +165,14 @@ void setup_procedure(){
     gyro_roll_cal /= 2000;
     gyro_pitch_cal /= 2000;
     gyro_yaw_cal /= 2000;
-    pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+
+    if(debug)pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+    
     // while the receiver is off, or high, or ch 4 is left
     while(ch3.pulsewidth() < 1000 || ch3.pulsewidth() > 1020 || ch4.pulsewidth() < 1400){;}
-    pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+    
+    if(debug)pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+    
     regime = 0;
     counter = 0;
     t.start();
@@ -180,15 +180,9 @@ void setup_procedure(){
 }
 
 
-void main_loop(){
 
-    read_gyro();
-    input_r = (input_r * 0.7) + ((gyro_roll / 57.14286) * 0.3);
-    input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);
-    input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);
 
-    
-
+void regime_determination(){
     if(ch3.pulsewidth() < 1020 && ch4.pulsewidth() <1020){
         regime = 1;
     }
@@ -202,6 +196,20 @@ void main_loop(){
     if(regime ==2 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() > 1970){
         regime = 0;
     }
+
+}
+
+
+void main_loop(){
+
+    read_gyro();
+    input_r = (input_r * 0.7) + ((gyro_roll / 57.14286) * 0.3);
+    input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);
+    input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);
+
+    
+    regime_determination();
+
 
     setpoint_r = 0;
     setpoint_p = 0;
@@ -234,10 +242,10 @@ void main_loop(){
     throttle = ch3.pulsewidth();
     
     if (regime == 2){
-        esc_1 =  throttle - output_p + output_r - output_y; //Calculate the pulse for esc 1 (front-right - CCW)
-        esc_2 =  throttle + output_p + output_r + output_y; //Calculate the pulse for esc 2 (rear-right - CW)
-        esc_3 =  throttle + output_p - output_r - output_y; //Calculate the pulse for esc 3 (rear-left - CCW)
-        esc_4 =  throttle - output_p - output_r + output_y; //Calculate the pulse for esc 4 (front-left - CW)
+        esc_1 =  throttle - output_p + output_r - output_y; //esc 1 (front-right - CCW)
+        esc_2 =  throttle + output_p + output_r + output_y; //esc 2 (rear-right - CW)
+        esc_3 =  throttle + output_p - output_r - output_y; //esc 3 (rear-left - CCW)
+        esc_4 =  throttle - output_p - output_r + output_y; //esc 4 (front-left - CW)
 
         if (esc_1 < 1200) esc_1 = 1200;
         if (esc_2 < 1200) esc_2 = 1200;
@@ -250,22 +258,22 @@ void main_loop(){
         if(esc_4 > 2000) esc_4 = 2000;  
     }
     else{
-        esc_1 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-1.
-        esc_2 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-2.
-        esc_3 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-3.
-        esc_4 = 1000;                                                           //If start is not 2 keep a 1000us pulse for ess-4.
-    }
+        esc_1 = 1000;
+        esc_2 = 1000;
+        esc_3 = 1000;
+        esc_4 = 1000;
 
-    esc1.pulsewidth_us(esc_1);    // set the initial pulsewidth to 800 us just to keep them on
-    esc2.pulsewidth_us(esc_2);    // set the initial pulsewidth to 800 us just to keep them on
-    esc3.pulsewidth_us(esc_3);    // set the initial pulsewidth to 800 us just to keep them on
-    esc4.pulsewidth_us(esc_4);    // set the initial pulsewidth to 800 us just to keep them on
+    esc1.pulsewidth_us(esc_1);
+    esc2.pulsewidth_us(esc_2);
+    esc3.pulsewidth_us(esc_3);
+    esc4.pulsewidth_us(esc_4);
   
-    if(counter == 125){
-        pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n",gyro_roll, gyro_yaw, gyro_pitch);
+    if(counter == 500 && debug){
+        pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n", gyro_roll, gyro_yaw, gyro_pitch);
         pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
         pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
-        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n",esc_1 ,esc_2 ,esc_3 ,esc_4);
+        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n", esc_1, esc_2, esc_3, esc_4);
+        pc.printf("looptime: %f \r\n\r\n", t.read_us()-loop_timer);
         counter = 0;
     }
 
