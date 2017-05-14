@@ -44,8 +44,7 @@ int counter;
 
 char last_channel_1, last_channel_2, last_channel_3, last_channel_4;
 int receiver_input_channel_1, receiver_input_channel_2, receiver_input_channel_3, receiver_input_channel_4;
-int esc_1, esc_2, esc_3, esc_4;
-//int throttle;
+double esc_1, esc_2, esc_3, esc_4;
 
 int calquant, regime;
 float loop_timer; // this is important for keeping the loop running at the right speed
@@ -55,8 +54,9 @@ double gyro_roll_cal, gyro_pitch_cal, gyro_yaw_cal
 float sys_error, last_r, last_p, last_y;
 float output_r, output_p, output_y;
 float integral_r, integral_p, integral_y;
-float setpoint_r, setpoint_p, setpoint_y;
-float input_r, input_p, input_y;
+double setpoint_r, setpoint_p, setpoint_y;
+float throttle;
+double input_r, input_p, input_y;
 
  
 PwmOut esc1(PTA2);
@@ -153,11 +153,11 @@ void setup_procedure(){
     esc2.period(0.02);          // servo requires a 20ms period
     esc3.period(0.02);          // servo requires a 20ms period
     esc4.period(0.02);          // servo requires a 20ms period
-    esc1.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc2.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc3.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    esc4.pulsewidth_us(800);    // set the initial pulsewidth to 800 us just to keep them on
-    wait_s(5);
+    esc1.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
+    esc2.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
+    esc3.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
+    esc4.pulsewidth_us(1000);    // set the initial pulsewidth to 800 us just to keep them on
+    wait(5);
    
     for (calquant = 0; calquant < 2000 ; calquant ++){              
         read_gyro();
@@ -169,14 +169,14 @@ void setup_procedure(){
     gyro_roll_cal /= 2000;
     gyro_pitch_cal /= 2000;
     gyro_yaw_cal /= 2000;
-
+    pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
     // while the receiver is off, or high, or ch 4 is left
     while(ch3.pulsewidth() < 1000 || ch3.pulsewidth() > 1020 || ch4.pulsewidth() < 1400){;}
-
+    pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
     regime = 0;
     counter = 0;
     t.start();
-    loop_timer = t.read();
+    loop_timer = t.read_us();
 }
 
 
@@ -218,7 +218,7 @@ void main_loop(){
         setpoint_p = (ch2.pulsewidth() - 1508)/3.0;
     }
     else if(ch2.pulsewidth() < 1492){
-        setpoint_p = (ch1.pulsewidth() - 1492)/3.0;
+        setpoint_p = (ch2.pulsewidth() - 1492)/3.0;
     }
 
     if(ch3.pulsewidth() > 1020){
@@ -231,12 +231,13 @@ void main_loop(){
     }
 
     pid_controller();
+    throttle = ch3.pulsewidth();
     
     if (regime == 2){
-        esc_1 =  -output_p + output_r - output_y; //Calculate the pulse for esc 1 (front-right - CCW)
-        esc_2 =  output_p + output_r + output_y; //Calculate the pulse for esc 2 (rear-right - CW)
-        esc_3 =  output_p - output_r - output_y; //Calculate the pulse for esc 3 (rear-left - CCW)
-        esc_4 =  -output_p - output_r + output_y; //Calculate the pulse for esc 4 (front-left - CW)
+        esc_1 =  throttle - output_p + output_r - output_y; //Calculate the pulse for esc 1 (front-right - CCW)
+        esc_2 =  throttle + output_p + output_r + output_y; //Calculate the pulse for esc 2 (rear-right - CW)
+        esc_3 =  throttle + output_p - output_r - output_y; //Calculate the pulse for esc 3 (rear-left - CCW)
+        esc_4 =  throttle - output_p - output_r + output_y; //Calculate the pulse for esc 4 (front-left - CW)
 
         if (esc_1 < 1200) esc_1 = 1200;
         if (esc_2 < 1200) esc_2 = 1200;
@@ -261,14 +262,15 @@ void main_loop(){
     esc4.pulsewidth_us(esc_4);    // set the initial pulsewidth to 800 us just to keep them on
   
     if(counter == 125){
-        printf("esc1: %s , esc2: %s , esc3: %s , esc4: %s \r\n",esc_1 ,esc_2 ,esc_3 ,esc_4);
-        printf("gyro_roll: %e , gyro_roll: %e , gyro_roll: %e \r\n",gyro_roll, gyro_yaw, gyro_pitch);
-        printf("output_r: %e , output_p: %e , output_y: %e \r\n",output_r, output_p, output_y);
+        pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n",gyro_roll, gyro_yaw, gyro_pitch);
+        pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
+        pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n",esc_1 ,esc_2 ,esc_3 ,esc_4);
         counter = 0;
     }
 
-    while((t.read()*1000) - loop_timer < 4000);
-    loop_timer = t.read()*1000;
+    while(t.read_us() - loop_timer < 4000);
+    loop_timer = t.read_us();
     counter ++;
 }
 
