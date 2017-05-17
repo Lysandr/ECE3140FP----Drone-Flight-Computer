@@ -34,7 +34,7 @@ float d_gain_r = 15;
 float p_gain_p = 1.3;
 float i_gain_p = 0;
 float d_gain_p = 15;
-float p_gain_y = 4.0;
+float p_gain_y = 2.5;
 float i_gain_y = 0.0;
 float d_gain_y = 0.0;
 
@@ -78,8 +78,9 @@ L3G4200D gyro(PTE25, PTE24);
 Serial pc(USBTX, USBRX); // tx, rx
 
 
-
-// just make this look
+// Simple continous proportional-integral-derivative controller
+// all based on error WRT the setpoint determined by the controller
+// default setpoint is zero
 void pid_controller(){
  // ################ ROLL
  sys_error = input_r - setpoint_r;
@@ -129,8 +130,6 @@ void pid_controller(){
 
 
 
-
-
 void read_gyro(){
     gyro.read(g);
 
@@ -160,7 +159,7 @@ void setup_procedure(){
         gyro_roll_cal += gyro_roll;
         gyro_pitch_cal += gyro_pitch;
         gyro_yaw_cal += gyro_yaw;
-        wait_us(3);
+        wait_us(5);
     }
     gyro_roll_cal /= 2000;
     gyro_pitch_cal /= 2000;
@@ -187,13 +186,13 @@ void regime_determination(){
         regime = 1;
     }
 
-    if(regime == 1 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() >1420){
+    if(regime == 1 && ch3.pulsewidth() < 1015 && ch4.pulsewidth() >1420){
         regime =2;
         integral_r = 0; integral_p = 0; integral_y = 0; 
         last_r = 0; last_p = 0; last_y = 0;
     }
 
-    if(regime ==2 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() > 1970){
+    if(regime ==2 && ch3.pulsewidth() < 1015 && ch4.pulsewidth() > 1980){
         regime = 0;
     }
 
@@ -215,18 +214,18 @@ void main_loop(){
     setpoint_p = 0;
     setpoint_y = 0;
 
-    if(ch1.pulsewidth() > 1508){
-        setpoint_r = (ch1.pulsewidth() - 1508)/3.0;
+    if(ch1.pulsewidth() > 1488){
+        setpoint_r = (ch1.pulsewidth() - 1488)/3.0;
     }
-    else if(ch1.pulsewidth() < 1492){
-        setpoint_r = (ch1.pulsewidth() - 1492)/3.0;
+    else if(ch1.pulsewidth() < 1472){
+        setpoint_r = (ch1.pulsewidth() - 1472)/3.0;
     }
 
-    if(ch2.pulsewidth() > 1508){
-        setpoint_p = (ch2.pulsewidth() - 1508)/3.0;
+    if(ch2.pulsewidth() > 1518){
+        setpoint_p = (ch2.pulsewidth() - 1518)/3.0;
     }
-    else if(ch2.pulsewidth() < 1492){
-        setpoint_p = (ch2.pulsewidth() - 1492)/3.0;
+    else if(ch2.pulsewidth() < 1498){
+        setpoint_p = (ch2.pulsewidth() - 1498)/3.0;
     }
 
     if(ch3.pulsewidth() > 1020){
@@ -240,39 +239,63 @@ void main_loop(){
 
     pid_controller();
     throttle = ch3.pulsewidth();
-    
+    if (throttle > 1800) throttle = 1800;
+
     if (regime == 2){
-        esc_1 =  throttle - output_p + output_r - output_y; //esc 1 (front-right - CCW)
-        esc_2 =  throttle + output_p + output_r + output_y; //esc 2 (rear-right - CW)
-        esc_3 =  throttle + output_p - output_r - output_y; //esc 3 (rear-left - CCW)
-        esc_4 =  throttle - output_p - output_r + output_y; //esc 4 (front-left - CW)
+        esc_1 =  throttle - output_p - output_r + output_y;
+        esc_2 =  throttle + output_p - output_r - output_y;
+        esc_3 =  throttle + output_p + output_r + output_y;
+        esc_4 =  throttle - output_p + output_r - output_y;
+        
+        // PHYSICS OF THE QUADROTOR:
+        // to perform positive roll, the back two motors need to speed up, and the first two slow down
+        // to perform positive pitch, the right two motors need to speed up, left two slow down
+        // to perform positive yaw, the two CCW motors need to slow down, and CW ones speed up (cons angular momentum)
+        // to throttle up, all motors should speedup
+        // the converse is true for negative...
+        // NOTE: positive rate changes are WRT CW direction on the gyroscope!
 
-        if (esc_1 < 1200) esc_1 = 1200;
-        if (esc_2 < 1200) esc_2 = 1200;
-        if (esc_3 < 1200) esc_3 = 1200;
-        if (esc_4 < 1200) esc_4 = 1200;
 
-        if(esc_1 > 2000) esc_1 = 2000;
+        /*
+
+          \ (4)CW   / (1) CCW
+           \       /
+            \     /
+             \   /
+              \ /
+               x
+              / \
+             /   \
+            /     \
+           /       \
+          / (3)CCW  \ (2) CW
+
+        */
+        if (esc_1 < 1100) esc_1 = 1100; //lower PWM output bounds
+        if (esc_2 < 1100) esc_2 = 1100;
+        if (esc_3 < 1100) esc_3 = 1100;
+        if (esc_4 < 1100) esc_4 = 1100;
+        if(esc_1 > 2000) esc_1 = 2000; //upper PWM output bounds
         if(esc_2 > 2000) esc_2 = 2000;
         if(esc_3 > 2000) esc_3 = 2000;
-        if(esc_4 > 2000) esc_4 = 2000;  
+        if(esc_4 > 2000) esc_4 = 2000; 
     }
     else{
-        esc_1 = 1000;
-        esc_2 = 1000;
-        esc_3 = 1000;
-        esc_4 = 1000;
+        esc_1 = 500;  //default values
+        esc_2 = 500;
+        esc_3 = 500;
+        esc_4 = 500;
     }
     esc1.pulsewidth_us(esc_1);
     esc2.pulsewidth_us(esc_2);
     esc3.pulsewidth_us(esc_3);
     esc4.pulsewidth_us(esc_4);
   
-    if(counter == 500 && debug){
-        pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n", gyro_roll, gyro_yaw, gyro_pitch);
-        pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
-        pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
-        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n", esc_1, esc_2, esc_3, esc_4);
+    if(counter == 1000 && debug){
+        //pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n", gyro_roll, gyro_yaw, gyro_pitch);
+//        pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
+//        pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+//        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n", esc_1, esc_2, esc_3, esc_4);
         pc.printf("looptime: %f \r\n\r\n", t.read_us()-loop_timer);
         counter = 0;
     }
