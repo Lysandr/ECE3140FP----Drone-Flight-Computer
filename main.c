@@ -11,8 +11,6 @@
 #include <L3G4200D.h>
 #include <PwmIn.h>
 
-
-
 /* INCLUDE I2C LIBRARY --> https://community.nxp.com/docs/DOC-101385
   INCLUDE PWM LIBRARY --> https://community.nxp.com/docs/DOC-101383
   other resources
@@ -28,26 +26,26 @@
 */
 
 //PID gains for each of the rate controllers. notice the integral controller is very small
-float p_gain_r = 1.3;
-float i_gain_r = 0;
-float d_gain_r = 15;
-float p_gain_p = 1.3;
+float p_gain_r = 1;
+float i_gain_r = 0.04;
+float d_gain_r = 13;
+float p_gain_p = 1.5;
 float i_gain_p = 0;
 float d_gain_p = 15;
-float p_gain_y = 2.5;
+float p_gain_y = 2;
 float i_gain_y = 0.0;
 float d_gain_y = 0.0;
 
-int max_yaw = 400;
-int max_roll = 400;
-int max_pitch = 400;
+int max_yaw = 300;
+int max_roll = 300;
+int max_pitch = 300;
 
 signed int g[3]={};                     
 int counter, calquant, regime;
-const int debug = 1;
+const int debug = 0;
 
 float throttle;
-float loop_timer;
+float looptime;
 float sys_error, last_r, last_p, last_y;
 float output_r, output_p, output_y;
 float integral_r, integral_p, integral_y;
@@ -78,64 +76,59 @@ L3G4200D gyro(PTE25, PTE24);
 Serial pc(USBTX, USBRX); // tx, rx
 
 
-// Simple continous proportional-integral-derivative controller
-// all based on error WRT the setpoint determined by the controller
-// default setpoint is zero
 void pid_controller(){
  // ################ ROLL
- sys_error = input_r - setpoint_r;
- integral_r += (i_gain_r*sys_error);
- if(integral_r > max_roll){
-     integral_r = max_roll;
- }
- else if(integral_r < max_roll * -1){
-     integral_r = max_roll * -1;
- }
- output_r = integral_r + (p_gain_r * sys_error) + (d_gain_r * (sys_error - last_r));
- last_r = sys_error;
+    sys_error = input_r - setpoint_r;
+    integral_r += (i_gain_r*sys_error);
+    if(integral_r > max_roll){
+        integral_r = max_roll;
+    }
+    else if(integral_r < max_roll * -1){
+        integral_r = max_roll * -1;
+    }
+    output_r = -(integral_r + (p_gain_r * sys_error) + (d_gain_r * (sys_error - last_r))); //roll right is positive output
+    last_r = sys_error;
 
- // ################ PITCH
- sys_error = input_p - setpoint_p;
- integral_p += (i_gain_p*sys_error);
- if(integral_p > max_pitch){
-     integral_p = max_pitch;
- }
- else if(integral_p < max_pitch * -1){
-     integral_p = max_pitch * -1;
- }
- output_p = integral_p + (p_gain_p * sys_error) + (d_gain_p * (sys_error - last_p));
- last_p = sys_error;
+    // ################ PITCH
+    sys_error = input_p - setpoint_p;
+    integral_p += (i_gain_p*sys_error);
+    if(integral_p > max_pitch){
+        integral_p = max_pitch;
+    }
+    else if(integral_p < max_pitch * -1){
+        integral_p = max_pitch * -1;
+    }
+    output_p = -(integral_p + (p_gain_p * sys_error) + (d_gain_p * (sys_error - last_p))); //pitch forward is positive output
+    last_p = sys_error;
 
- // ################ YAW
- sys_error = input_y - setpoint_y;
- integral_y += (i_gain_y*sys_error);
- if(integral_y > max_yaw){
-     integral_y = max_yaw;
- }
- else if(integral_y < max_yaw * -1){
-     integral_y = max_yaw * -1;
- }
- output_y = integral_y + (p_gain_y * sys_error) + (d_gain_y * (sys_error - last_y));
- last_y = sys_error;
+    // ################ YAW
+    sys_error = input_y - setpoint_y;
+    integral_y += (i_gain_y*sys_error);
+    if(integral_y > max_yaw){
+        integral_y = max_yaw;
+    }
+    else if(integral_y < max_yaw * -1){
+        integral_y = max_yaw * -1;
+    }
+    output_y = -(integral_y + (p_gain_y * sys_error) + (d_gain_y * (sys_error - last_y))); //yaw right is positive output
+    last_y = sys_error;
 
- // ################ BOUNDARY CONDITIONING
- if(output_r > max_roll)output_r = max_roll;
- else if(output_r < max_roll * -1)output_r = max_roll * -1;
- if(output_p > max_pitch)output_p = max_pitch;
- else if(output_p < max_pitch * -1)output_p = max_pitch * -1;
- if(output_y > max_yaw)output_y = max_yaw;
- else if(output_y < max_yaw * -1)output_y = max_yaw * -1;
+    // ################ BOUNDARY CONDITIONING
+    if(output_r > max_roll)output_r = max_roll;
+    else if(output_r < max_roll * -1)output_r = max_roll * -1;
+    if(output_p > max_pitch)output_p = max_pitch;
+    else if(output_p < max_pitch * -1)output_p = max_pitch * -1;
+    if(output_y > max_yaw)output_y = max_yaw;
+    else if(output_y < max_yaw * -1)output_y = max_yaw * -1;
 
 }
 
 
-
 void read_gyro(){
     gyro.read(g);
-
     gyro_roll =     (double) g[0];// CCW -, CW + pointing along X
     gyro_pitch =    (double) g[1]; // CCW -, CW + pointing along Y
-    gyro_yaw =      (double) g[2];   // CCW +, CW -
+    gyro_yaw =  -1* (double) g[2];   // CCW +, CW -
 
     if(calquant == 2000)gyro_roll -= gyro_roll_cal; 
     if(calquant == 2000)gyro_pitch -= gyro_pitch_cal; 
@@ -153,6 +146,8 @@ void setup_procedure(){
     esc3.pulsewidth_us(1000);
     esc4.pulsewidth_us(1000);
     wait(5);
+    
+    if(debug){pc.printf("Motor Initialization Complete \r\n");}
    
     for (calquant = 0; calquant < 2000 ; calquant ++){              
         read_gyro();
@@ -164,36 +159,36 @@ void setup_procedure(){
     gyro_roll_cal /= 2000;
     gyro_pitch_cal /= 2000;
     gyro_yaw_cal /= 2000;
+    gyro_yaw_cal +=50;
 
-    if(debug){pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());}
+
+    if(debug){pc.printf("Gyro Calibration Complete \r\n");}
     
-    // while the receiver is off, or high, or ch 4 is left
+    // while the receiver is off, throttle is not at bottom, 
     while(ch3.pulsewidth() < 1000 || ch3.pulsewidth() > 1020 || ch4.pulsewidth() < 1400){;}
     
-    if(debug){pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());}
+    if(debug){pc.printf("Receiver connected and ready \r\n");}
     
     regime = 0;
     counter = 0;
     t.start();
-    loop_timer = t.read_us();
+    looptime = t.read_us();
 }
-
-
 
 
 void regime_determination(){
     if(ch3.pulsewidth() < 1020 && ch4.pulsewidth() <1020){
-        regime = 1;
+        regime = 1; //in enabled position
     }
 
-    if(regime == 1 && ch3.pulsewidth() < 1015 && ch4.pulsewidth() >1420){
-        regime =2;
+    if(regime == 1 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() >1420){
+        regime =2; //fly mode because went form enabled position to center position
         integral_r = 0; integral_p = 0; integral_y = 0; 
         last_r = 0; last_p = 0; last_y = 0;
     }
 
-    if(regime ==2 && ch3.pulsewidth() < 1015 && ch4.pulsewidth() > 1980){
-        regime = 0;
+    if(regime ==2 && ch3.pulsewidth() < 1020 && ch4.pulsewidth() > 1970){
+        regime = 0; //disable 
     }
 
 }
@@ -206,14 +201,13 @@ void main_loop(){
     input_p = (input_p * 0.7) + ((gyro_pitch / 57.14286) * 0.3);
     input_y = (input_y * 0.7) + ((gyro_yaw / 57.14286) * 0.3);
 
-    
     regime_determination();
-
 
     setpoint_r = 0;
     setpoint_p = 0;
     setpoint_y = 0;
 
+    // MAPPING THE INPUT TO THE DEG/S PARAMETER THE PID CONTROLLER NEEDS
     if(ch1.pulsewidth() > 1488){
         setpoint_r = (ch1.pulsewidth() - 1488)/3.0;
     }
@@ -239,26 +233,17 @@ void main_loop(){
 
     pid_controller();
     throttle = ch3.pulsewidth();
-    if (throttle > 1800) throttle = 1800;
-
-    if (regime == 2){
+    
+    if (regime == 2){ //fly mode
+    
         esc_1 =  throttle - output_p - output_r + output_y;
         esc_2 =  throttle + output_p - output_r - output_y;
         esc_3 =  throttle + output_p + output_r + output_y;
         esc_4 =  throttle - output_p + output_r - output_y;
         
-        // PHYSICS OF THE QUADROTOR:
-        // to perform positive roll, the back two motors need to speed up, and the first two slow down
-        // to perform positive pitch, the right two motors need to speed up, left two slow down
-        // to perform positive yaw, the two CCW motors need to slow down, and CW ones speed up (cons angular momentum)
-        // to throttle up, all motors should speedup
-        // the converse is true for negative...
-        // NOTE: positive rate changes are WRT CW direction on the gyroscope!
-
-
         /*
 
-          \ (4)CW   / (1) CCW
+          \ (2)CW   / (1) CCW
            \       /
             \     /
              \   /
@@ -268,19 +253,22 @@ void main_loop(){
              /   \
             /     \
            /       \
-          / (3)CCW  \ (2) CW
+          / (3)CCW  \ (4) CW
 
         */
-        if (esc_1 < 1100) esc_1 = 1100; //lower PWM output bounds
+
+        //BOUNDARY CONDITIONING
+        if (esc_1 < 1100) esc_1 = 1100;
         if (esc_2 < 1100) esc_2 = 1100;
         if (esc_3 < 1100) esc_3 = 1100;
         if (esc_4 < 1100) esc_4 = 1100;
-        if(esc_1 > 2000) esc_1 = 2000; //upper PWM output bounds
+        if(esc_1 > 2000) esc_1 = 2000;
         if(esc_2 > 2000) esc_2 = 2000;
         if(esc_3 > 2000) esc_3 = 2000;
-        if(esc_4 > 2000) esc_4 = 2000; 
+        if(esc_4 > 2000) esc_4 = 2000;
+        
     }
-    else{
+    else{ 
         esc_1 = 500;  //default values
         esc_2 = 500;
         esc_3 = 500;
@@ -291,17 +279,18 @@ void main_loop(){
     esc3.pulsewidth_us(esc_3);
     esc4.pulsewidth_us(esc_4);
   
-    if(counter == 1000 && debug){
-        //pc.printf("gyro_roll: %f , gyro_roll: %f , gyro_roll: %f \r\n", gyro_roll, gyro_yaw, gyro_pitch);
-//        pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
-//        pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
-//        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n", esc_1, esc_2, esc_3, esc_4);
-        pc.printf("looptime: %f \r\n\r\n", t.read_us()-loop_timer);
+    if(counter == 500 && debug){
+        pc.printf("gyro_roll: %f , gyro_yaw: %f , gyro_pitch: %f \r\n", gyro_roll, gyro_yaw, gyro_pitch);
+        pc.printf("output_r: %f , output_p: %f , output_y: %f \r\n",output_r, output_p, output_y);
+        pc.printf("ch1: %f , ch2: %f , ch3: %f , ch4: %f \r\n", ch1.pulsewidth(), ch2.pulsewidth(), ch3.pulsewidth(), ch4.pulsewidth());
+        pc.printf("esc1: %f , esc2: %f , esc3: %f , esc4: %f \r\n", esc_1, esc_2, esc_3, esc_4);
+        pc.printf("Regime: %d,\r\n", regime);
+        pc.printf("looptime: %f \r\n\r\n", t.read_us()-looptime);
         counter = 0;
     }
 
-    while(t.read_us() - loop_timer < 4000);
-    loop_timer = t.read_us();
+    while(t.read_us() - looptime < 4000);
+    looptime = t.read_us();
     counter ++;
 }
 
