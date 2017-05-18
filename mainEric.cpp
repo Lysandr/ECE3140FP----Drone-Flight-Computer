@@ -28,13 +28,13 @@
 */
 
 //PID gains for each of the rate controllers. notice the integral controller is very small
-float p_gain_r = 3;
+float p_gain_r = 1.5;
 float i_gain_r = 0;
 float d_gain_r = 15;
-float p_gain_p = 3;
+float p_gain_p = 1.5;
 float i_gain_p = 0;
 float d_gain_p = 15;
-float p_gain_y = 5;
+float p_gain_y = 2;
 float i_gain_y = 0.0;
 float d_gain_y = 0.0;
 
@@ -44,7 +44,7 @@ int max_pitch = 400;
 
 signed int g[3]={};                     
 int counter, calquant, regime;
-const int debug = 1;
+const int debug = 0;
 
 float throttle;
 float loop_timer;
@@ -137,7 +137,7 @@ void read_gyro(){
 
     gyro_roll =     (double) g[0];// CCW -, CW + pointing along X
     gyro_pitch =    (double) g[1]; // CCW -, CW + pointing along Y
-    gyro_yaw =      (double) g[2];   // CCW +, CW -
+    gyro_yaw =     -1* (double) g[2];   // CCW +, CW -
 
     if(calquant == 2000)gyro_roll -= gyro_roll_cal; 
     if(calquant == 2000)gyro_pitch -= gyro_pitch_cal; 
@@ -168,6 +168,7 @@ void setup_procedure(){
     gyro_roll_cal /= 2000;
     gyro_pitch_cal /= 2000;
     gyro_yaw_cal /= 2000;
+    gyro_yaw_cal +=50;
 
     if(debug){pc.printf("Gyro Calibration Complete \r\n");}
     
@@ -217,25 +218,25 @@ void main_loop(){
     setpoint_y = 0;
 
     if(ch1.pulsewidth() > 1488){
-        setpoint_r = (ch1.pulsewidth() - 1488)/1.0;
+        setpoint_r = (ch1.pulsewidth() - 1488)/3.0;
     }
     else if(ch1.pulsewidth() < 1472){
-        setpoint_r = (ch1.pulsewidth() - 1472)/1.0;
+        setpoint_r = (ch1.pulsewidth() - 1472)/3.0;
     }
 
     if(ch2.pulsewidth() > 1518){
-        setpoint_p = (ch2.pulsewidth() - 1518)/1.0;
+        setpoint_p = (ch2.pulsewidth() - 1518)/3.0;
     }
     else if(ch2.pulsewidth() < 1498){
-        setpoint_p = (ch2.pulsewidth() - 1498)/1.0;
+        setpoint_p = (ch2.pulsewidth() - 1498)/3.0;
     }
 
     if(ch3.pulsewidth() > 1020){
         if(ch4.pulsewidth() > 1508){
-            setpoint_y = (ch4.pulsewidth() - 1508)/1.0;
+            setpoint_y = (ch4.pulsewidth() - 1508)/3.0;
         }
         else if(ch4.pulsewidth() < 1492){
-            setpoint_y = (ch4.pulsewidth() - 1492)/1.0;
+            setpoint_y = (ch4.pulsewidth() - 1492)/3.0;
         }
     }
 
